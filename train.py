@@ -46,6 +46,10 @@ def train_input_fn():
 def val_input_fn():
     return input_fn(filenames=["val.tfrecords"], train=False)
 
+## ------------------------------
+## Function to print images start
+## ------------------------------
+
 #features, labels = train_input_fn()
 
 # Initialize `iterator` with training data.
@@ -62,6 +66,10 @@ def val_input_fn():
 #    cv2.waitKey(0)
 #    cv2.destroyAllWindows()
 #    print('Class label ' + str(np.argmax(label[i])))
+
+## ------------------------------
+## Function to print images end
+## ------------------------------
 
 
 feature_columns = [tf.feature_column.numeric_column("image", shape=[224, 224, 3])]
