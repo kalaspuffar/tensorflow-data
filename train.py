@@ -43,7 +43,7 @@ def train_input_fn():
     return input_fn(filenames=["train.tfrecords", "test.tfrecords"], train=True)
 
 def val_input_fn():
-    return input_fn(filenames=["val.tfrecords"], train=True)
+    return input_fn(filenames=["val.tfrecords"], train=False)
 
 #features, labels = train_input_fn()
 
@@ -75,99 +75,54 @@ classifier = tf.estimator.DNNClassifier(
     dropout=0.1
     ) # Path to where checkpoints etc are stored
 
-classifier.train(input_fn=train_input_fn, steps=100000)
-result = classifier.evaluate(input_fn=val_input_fn)
+#classifier.train(input_fn=train_input_fn, steps=100000)
+#result = classifier.evaluate(input_fn=val_input_fn)
 
-print(result);
-print("Classification accuracy: {0:.2%}".format(result["accuracy"]))
+#print(result);
+#print("Classification accuracy: {0:.2%}".format(result["accuracy"]))
 
-def model_fn(features, labels, mode, params, num_classes = 2):
-    # Args:
-    #
-    # features: This is the x-arg from the input_fn.
-    # labels:   This is the y-arg from the input_fn.
-    # mode:     Either TRAIN, EVAL, or PREDICT
-    # params:   User-defined hyper-parameters, e.g. learning-rate.
-    # Reference to the tensor named "image" in the input-function.
+def model_fn(features, labels, mode, params):
+    num_classes = 2
     net = features["image"]
 
-    # The convolutional layers expect 4-rank tensors
-    # but x is a 2-rank tensor, so reshape it.
     net = tf.reshape(net, [-1, 224, 224, 3])    
 
-    # First convolutional layer.
     net = tf.layers.conv2d(inputs=net, name='layer_conv1',
                            filters=32, kernel_size=3,
                            padding='same', activation=tf.nn.relu)
     net = tf.layers.max_pooling2d(inputs=net, pool_size=2, strides=2)
 
-    # Second convolutional layer.
     net = tf.layers.conv2d(inputs=net, name='layer_conv2',
                            filters=32, kernel_size=3,
                            padding='same', activation=tf.nn.relu)
     net = tf.layers.max_pooling2d(inputs=net, pool_size=2, strides=2)    
 
-    # Flatten to a 2-rank tensor.
     net = tf.contrib.layers.flatten(net)
-    # Eventually this should be replaced with:
-    # net = tf.layers.flatten(net)
 
-    # First fully-connected / dense layer.
-    # This uses the ReLU activation function.
     net = tf.layers.dense(inputs=net, name='layer_fc1',
                           units=128, activation=tf.nn.relu)    
-
-    # Second fully-connected / dense layer.
-    # This is the last layer so it does not use an activation function.
     net = tf.layers.dense(inputs=net, name='layer_fc_2',
                           units=num_classes)
 
-    # Logits output of the neural network.
     logits = net
-
-    # Softmax output of the neural network.
     y_pred = tf.nn.softmax(logits=logits)
-    
-    # Classification output of the neural network.
     y_pred_cls = tf.argmax(y_pred, axis=1)
 
     if mode == tf.estimator.ModeKeys.PREDICT:
-        # If the estimator is supposed to be in prediction-mode
-        # then use the predicted class-number that is output by
-        # the neural network. Optimization etc. is not needed.
         spec = tf.estimator.EstimatorSpec(mode=mode,
                                           predictions=y_pred_cls)
     else:
-        # Otherwise the estimator is supposed to be in either
-        # training or evaluation-mode. Note that the loss-function
-        # is also required in Evaluation mode.
-        
-        # Define the loss-function to be optimized, by first
-        # calculating the cross-entropy between the output of
-        # the neural network and the true labels for the input data.
-        # This gives the cross-entropy for each image in the batch.
         cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels,
                                                                        logits=logits)
-
-        # Reduce the cross-entropy batch-tensor to a single number
-        # which can be used in optimization of the neural network.
         loss = tf.reduce_mean(cross_entropy)
 
-        # Define the optimizer for improving the neural network.
         optimizer = tf.train.AdamOptimizer(learning_rate=params["learning_rate"])
-
-        # Get the TensorFlow op for doing a single optimization step.
         train_op = optimizer.minimize(
             loss=loss, global_step=tf.train.get_global_step())
-
-        # Define the evaluation metrics,
-        # in this case the classification accuracy.
-        metrics = \
-        {
+        metrics = {
             "accuracy": tf.metrics.accuracy(labels, y_pred_cls)
         }
 
-        # Wrap all of this in an EstimatorSpec.
         spec = tf.estimator.EstimatorSpec(
             mode=mode,
             loss=loss,
@@ -180,8 +135,11 @@ model = tf.estimator.Estimator(model_fn=model_fn,
                                params={"learning_rate": 1e-4},
                                model_dir="./model2/")
 
-model.train(input_fn=train_input_fn, steps=100000)
-
-result = model.evaluate(input_fn=val_input_fn)
-print(result);
-print("Classification accuracy: {0:.2%}".format(result["accuracy"]))
+count = 0
+while (count < 100):
+    model.train(input_fn=train_input_fn, steps=1000)
+    result = model.evaluate(input_fn=val_input_fn)
+    print(result)
+    print("Classification accuracy: {0:.2%}".format(result["accuracy"]))
+    sys.stdout.flush()
+    count = count + 1
