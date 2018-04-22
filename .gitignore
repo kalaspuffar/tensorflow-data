@@ -99,3 +99,9 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+PetImages
+model
+model2
+.vscode
+*.tfrecords
