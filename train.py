@@ -14,81 +14,26 @@ def parser(record):
     parsed = tf.parse_single_example(record, keys_to_features)
     image = tf.decode_raw(parsed["image_raw"], tf.uint8)
     image = tf.cast(image, tf.float32)
-    image = tf.reshape(image, shape=[224, 224, 3])
+    #image = tf.reshape(image, shape=[224, 224, 3])
     label = tf.cast(parsed["label"], tf.int32)
 
-    return image, label
+    return {'image': image}, label
 
 
-def input_fn(filenames, train, batch_size=32, buffer_size=2048):
-    dataset = tf.data.TFRecordDataset(filenames=filenames)
-    dataset = dataset.map(parser)
+def input_fn(filenames):
+  dataset = tf.data.TFRecordDataset(filenames=filenames)
+  dataset = dataset.shuffle(buffer_size=2048)
+  dataset = dataset.map(map_func=parser)
+  dataset = dataset.batch(batch_size=32)
+  dataset = dataset.prefetch(buffer_size=2048)
+  return dataset
 
-    if train:
-        dataset = dataset.shuffle(buffer_size=buffer_size)
-        num_repeat = None
-    else:
-        num_repeat = 1
-
-    dataset = dataset.repeat(num_repeat)
-    dataset = dataset.batch(batch_size)
-    iterator = dataset.make_one_shot_iterator()
-    images_batch, labels_batch = iterator.get_next()
-
-    x = {'image': images_batch}
-    y = labels_batch
-
-    return x, y
 
 def train_input_fn():
-    return input_fn(filenames=["train.tfrecords", "test.tfrecords"], train=True)
+    return input_fn(filenames=["train.tfrecords", "test.tfrecords"])
 
 def val_input_fn():
-    return input_fn(filenames=["val.tfrecords"], train=False)
-
-## ------------------------------
-## Function to print images start
-## ------------------------------
-
-#features, labels = train_input_fn()
-
-# Initialize `iterator` with training data.
-#sess.run(train_iterator.initializer)
-# Initialize `iterator` with validation data.
-#sess.run(val_iterator.initializer)
-
-#img, label = sess.run([features['image'], labels])
-#print(img.shape, label.shape)
-
-# Loop over each example in batch
-#for i in range(img.shape[0]):
-#    cv2.imshow('image', img[i])
-#    cv2.waitKey(0)
-#    cv2.destroyAllWindows()
-#    print('Class label ' + str(np.argmax(label[i])))
-
-## ------------------------------
-## Function to print images end
-## ------------------------------
-
-
-feature_columns = [tf.feature_column.numeric_column("image", shape=[224, 224, 3])]
-
-classifier = tf.estimator.DNNClassifier(
-    feature_columns=feature_columns, # The input features to our model
-    hidden_units=[128, 64, 32, 16], # 5 layers
-    activation_fn=tf.nn.relu,
-    n_classes=3, # survived or not {1, 0}
-    model_dir='model',
-    optimizer=tf.train.AdamOptimizer(1e-4),
-    dropout=0.1
-    ) # Path to where checkpoints etc are stored
-
-#classifier.train(input_fn=train_input_fn, steps=100000)
-#result = classifier.evaluate(input_fn=val_input_fn)
-
-#print(result);
-#print("Classification accuracy: {0:.2%}".format(result["accuracy"]))
+    return input_fn(filenames=["val.tfrecords"])
 
 def model_fn(features, labels, mode, params):
     num_classes = 2
