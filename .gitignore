@@ -101,7 +101,6 @@ ENV/
 .mypy_cache/
 
 PetImages
-model
-model2
+model*
 .vscode
 *.tfrecords
