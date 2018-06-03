@@ -41,7 +41,7 @@ freeze_graph \
   --input_checkpoint=./model2/model.ckpt-81852 \
   --input_binary=false \
   --output_graph=/tmp/frozen.pb \
-  --output_node_names=Softmax
+  --output_node_names=input_tensor,output_pred
 ```
 
 In order to convert your model you need a tool called toco (Tensorflow Lite Optimizing Converter). Use the command below to build this tool in your tensorflow directory.
@@ -57,8 +57,8 @@ After that you convert it into a tensorflow lite model using the command below i
    --input_format=TENSORFLOW_GRAPHDEF 
    --output_format=TFLITE 
    --output_file=/tmp/cat_vs_dogs.tflite 
-   --input_arrays=Reshape 
-   --output_arrays=Softmax 
+   --input_arrays=input_tensor 
+   --output_arrays=output_pred 
    --input_shapes=1,224,224,3
 ```
 
