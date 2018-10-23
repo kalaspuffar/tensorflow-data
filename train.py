@@ -5,6 +5,7 @@ import numpy as np
 
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
+sess.as_default()
 
 def parser(record):
     keys_to_features = {
@@ -13,32 +14,59 @@ def parser(record):
     }
     parsed = tf.parse_single_example(record, keys_to_features)
     image = tf.decode_raw(parsed["image_raw"], tf.uint8)
-    image = tf.cast(image, tf.float32)
+    #image = tf.cast(image, tf.float32)
+    image = tf.reshape(image, shape=[400, 600, 3])
     #image = tf.reshape(image, shape=[224, 224, 3])
     label = tf.cast(parsed["label"], tf.int32)
 
-    return {'image': image}, label
+    return image, label
+    
 
+def input_fn(filenames, train, batch_size=32, buffer_size=2048):
+    dataset = tf.data.TFRecordDataset(filenames=filenames)
+    dataset = dataset.map(parser)
+    if train:
+        dataset = dataset.shuffle(buffer_size=buffer_size)
+        num_repeat = None
+    else:
+        num_repeat = 1
 
-def input_fn(filenames):
-  dataset = tf.data.TFRecordDataset(filenames=filenames, num_parallel_reads=40)
-  dataset = dataset.apply(
-      tf.contrib.data.shuffle_and_repeat(1024, 1)
-  )
-  dataset = dataset.apply(
-      tf.contrib.data.map_and_batch(parser, 32)
-  )
-  #dataset = dataset.map(parser, num_parallel_calls=12)
-  #dataset = dataset.batch(batch_size=1000)
-  dataset = dataset.prefetch(buffer_size=2)
-  return dataset
-
+    dataset = dataset.repeat(num_repeat)
+    dataset = dataset.batch(batch_size)
+    iterator = dataset.make_one_shot_iterator()
+    images_batch, labels_batch = iterator.get_next()
+    x = {'image': images_batch}
+    y = labels_batch
+    return x, y    
 
 def train_input_fn():
-    return input_fn(filenames=["train.tfrecords", "test.tfrecords"])
+    return input_fn(filenames=["train.tfrecords"], train=True)
 
 def val_input_fn():
-    return input_fn(filenames=["val.tfrecords"])
+    return input_fn(filenames=["val.tfrecords"], train=False)
+
+
+
+## ------------------------------	
+## Function to print images start	
+## ------------------------------	
+features, labels = train_input_fn()	
+# Initialize `iterator` with training data.	
+#sess.run(train_iterator.initializer)	
+# Initialize `iterator` with validation data.	
+#sess.run(val_iterator.initializer)	
+img, label = sess.run([features['image'], labels])	
+print(img.shape, label.shape)	
+ # Loop over each example in batch	
+for i in range(img.shape[0]):	
+    cv2.imshow('image', img[i])
+    cv2.waitKey(0)	
+    cv2.destroyAllWindows()	
+    print('Class label ' + str(np.argmax(label[i])))	
+## ------------------------------	
+## Function to print images end	
+## ------------------------------
+
 
 def model_fn(features, labels, mode, params):
     num_classes = 3
